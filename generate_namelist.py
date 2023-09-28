@@ -1,6 +1,7 @@
 import glob
 import os
-
+import argparse
+import netCDF4
 import pandas as pd
 
 
@@ -137,7 +138,10 @@ def rapid_namelist(
 def rapid_namelist_from_directories(vpu_directory: str,
                                     inflows_directory: str,
                                     namelists_directory: str,
-                                    outputs_directory: str, ) -> None:
+                                    outputs_directory: str,
+                                    datesubdir: bool = False,
+                                    qinit_file: str = None,
+                                    search_for_qinit_file: bool = True, ) -> None:
     vpu_code = os.path.basename(vpu_directory)
     k_file = os.path.join(vpu_directory, f'k.csv')
     x_file = os.path.join(vpu_directory, f'x.csv')
@@ -147,30 +151,45 @@ def rapid_namelist_from_directories(vpu_directory: str,
     for x in (k_file, x_file, riv_bas_id_file, rapid_connect_file):
         assert os.path.exists(x), f'{x} does not exist'
 
-    os.makedirs(namelists_directory, exist_ok=True)
-    os.makedirs(outputs_directory, exist_ok=True)
-
     inflow_files = sorted(glob.glob(os.path.join(inflows_directory, '*.nc')))
     if not len(inflow_files):
         print(f'No inflow files found for VPU {vpu_code}')
         return
 
+    os.makedirs(namelists_directory, exist_ok=True)
+
     for idx, inflow_file in enumerate(inflow_files):
-        start_date = os.path.basename(inflow_file).split('_')[6]
-        end_date = os.path.basename(inflow_file).split('_')[7].replace('.nc', '')
+        start_date = os.path.basename(inflow_file).split('_')[2]
+        end_date = os.path.basename(inflow_file).split('_')[3].replace('.nc', '')
         namelist_save_path = os.path.join(namelists_directory, f'namelist_{vpu_code}_{start_date}_{end_date}')
+        qout_file_name = f'Qout_{vpu_code}_{start_date}_{end_date}.nc'
         vlat_file = inflow_file
-        qout_file = os.path.join(outputs_directory, f'Qout_{vpu_code}_{start_date}_{end_date}.nc')
+        if datesubdir:
+            qout_file = os.path.join(outputs_directory, f'{start_date}', qout_file_name, )
+        else:
+            qout_file = os.path.join(outputs_directory, qout_file_name)
+        os.makedirs(outputs_directory, exist_ok=True)
 
-        time_total = ((pd.to_datetime(end_date) - pd.to_datetime(start_date)).days + 1) * 24 * 60 * 60
+        with netCDF4.Dataset(inflow_file) as ds:
+            time_step_inflows = ds['time_bnds'][0, 1] - ds['time_bnds'][0, 0]
+            time_total_inflow = ds['time_bnds'][-1, 1] - ds['time_bnds'][0, 0]
+        time_total = time_total_inflow
+        timestep_inp_runoff = time_step_inflows
+        timestep_calc = time_step_inflows
         timestep_calc_routing = 900
-        timestep_calc = 24 * 60 * 60
-        timestep_inp_runoff = 24 * 60 * 60
 
-        write_qfinal_file: bool = True
-        qfinal_file: str = os.path.join(outputs_directory, f'Qfinal_{vpu_code}_{end_date}.nc')
+        write_qfinal_file = True
+        qfinal_file = os.path.join(outputs_directory, f'Qfinal_{vpu_code}_{end_date}.nc')
 
-        use_qinit_file = idx > 0
+        # todo
+        # scan the outputs directory for files matching the pattern Qfinal_VPU_CODE_YYYYMMDD.nc
+        possible_qinit_files = sorted(glob.glob(os.path.join(outputs_directory, f'Qfinal_{vpu_code}_*.nc')))
+        if not len(possible_qinit_files):
+            qinit_file = ''
+        else:
+            # use the most recent file
+            qinit_file = possible_qinit_files[-1]
+        use_qinit_file = idx > 0 or qinit_file != ''
         qinit_file = os.path.join(
             outputs_directory, f'Qfinal_{vpu_code}_{inflow_files[idx - 1].split("_")[-1]}'
         ) if use_qinit_file else ''
@@ -195,9 +214,20 @@ def rapid_namelist_from_directories(vpu_directory: str,
 
 
 if __name__ == '__main__':
-    base_dir = '/Volumes/EB406_T7_2/TEST_6'
-    base_dir = base_dir[:-1] if base_dir.endswith('/') else base_dir
+    """
+    Prepare rapid namelist files for a directory of VPU inputs
+    """
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('--vpudir', type=str, required=True)
+    argparser.add_argument('--dockerpaths', action='store_true', default=False)
+    argparser.add_argument('--datesubdir', action='store_true', default=False)
+    args = argparser.parse_args()
 
+    base_dir = args.vpudir
+    dockerpaths = args.dockerpaths
+    datesubdir = args.datesubdir
+
+    base_dir = base_dir[:-1] if base_dir.endswith('/') else base_dir
     vpu_dirs = os.path.join(base_dir, 'inputs')
     inflow_dirs = os.path.join(base_dir, 'inflows')
     namelist_dirs = os.path.join(base_dir, 'namelists')
@@ -212,10 +242,11 @@ if __name__ == '__main__':
         rapid_namelist_from_directories(vpu_directory=vpu_dir,
                                         inflows_directory=inflow_dir,
                                         namelists_directory=namelist_dir,
-                                        outputs_directory=output_dir, )
+                                        outputs_directory=output_dir,
+                                        datesubdir=datesubdir, )
 
-    if base_dir != '/mnt':
-        for file in glob.glob(os.path.join(base_dir, 'namelists', '*', 'namelist*')):
+    if dockerpaths and base_dir != '/mnt':
+        for file in glob.glob(os.path.join(namelist_dirs, '*', 'namelist*')):
             with open(file, 'r') as f:
                 text = f.read().replace(base_dir, '/mnt')
             with open(file, 'w') as f:

@@ -15,7 +15,6 @@ def run_rapid_for_namelist_directory(path_to_rapid_executable: str,
     watershed_id = os.path.basename(namelist_dir)
     with open(f'/mnt/logs/{watershed_id}', 'w') as f:
         try:
-
             for namelist in sorted(glob.glob(os.path.join(namelist_dir, '*namelist*'))):
                 f.write(f'{timestamp()}: Running RAPID for {namelist}')
                 subprocess.call(

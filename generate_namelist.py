@@ -3,6 +3,7 @@ import os
 import argparse
 import netCDF4
 import pandas as pd
+import natsort
 
 
 def rapid_namelist(
@@ -151,7 +152,7 @@ def rapid_namelist_from_directories(vpu_directory: str,
     for x in (k_file, x_file, riv_bas_id_file, rapid_connect_file):
         assert os.path.exists(x), f'{x} does not exist'
 
-    inflow_files = sorted(glob.glob(os.path.join(inflows_directory, '*.nc')))
+    inflow_files = natsort.natsorted(glob.glob(os.path.join(inflows_directory, '*.nc')))
     if not len(inflow_files):
         print(f'No inflow files found for VPU {vpu_code}')
         return
@@ -159,16 +160,30 @@ def rapid_namelist_from_directories(vpu_directory: str,
     os.makedirs(namelists_directory, exist_ok=True)
 
     for idx, inflow_file in enumerate(inflow_files):
-        start_date = os.path.basename(inflow_file).split('_')[2]
-        end_date = os.path.basename(inflow_file).split('_')[3].replace('.nc', '')
-        namelist_save_path = os.path.join(namelists_directory, f'namelist_{vpu_code}_{start_date}_{end_date}')
+        inflow_file_name_params = os.path.basename(inflow_file).replace('.nc', '').split('_')
+        start_date = inflow_file_name_params[2]
+        end_date = inflow_file_name_params[3]
+        file_label = inflow_file_name_params[4] if len(inflow_file_name_params) > 4 else ''
+
+        namelist_file_name = f'namelist_{vpu_code}_{start_date}_{end_date}'
+        namelist_file_name = f'namelist_{vpu_code}'
         qout_file_name = f'Qout_{vpu_code}_{start_date}_{end_date}.nc'
         vlat_file = inflow_file
-        if datesubdir:
-            qout_file = os.path.join(outputs_directory, f'{start_date}', qout_file_name, )
-        else:
-            qout_file = os.path.join(outputs_directory, qout_file_name)
+        write_qfinal_file = True
+        qfinal_file = os.path.join(outputs_directory, f'Qfinal_{vpu_code}_{end_date}.nc')
+
+        if file_label:
+            namelist_file_name += f'_{file_label}'
+            qout_file_name = qout_file_name.replace('.nc', f'_{file_label}.nc')
+            qfinal_file = qfinal_file.replace('.nc', f'_{file_label}.nc')
+
+        namelist_save_path = os.path.join(namelists_directory, namelist_file_name)
+        qout_path = os.path.join(outputs_directory, qout_file_name)
         os.makedirs(outputs_directory, exist_ok=True)
+
+        if datesubdir:
+            os.makedirs(os.path.join(outputs_directory, f'{start_date}'), exist_ok=True)
+            qout_path = os.path.join(outputs_directory, f'{start_date}', qout_file_name, )
 
         with netCDF4.Dataset(inflow_file) as ds:
             time_step_inflows = ds['time_bnds'][0, 1] - ds['time_bnds'][0, 0]
@@ -178,21 +193,20 @@ def rapid_namelist_from_directories(vpu_directory: str,
         timestep_calc = time_step_inflows
         timestep_calc_routing = 900
 
-        write_qfinal_file = True
-        qfinal_file = os.path.join(outputs_directory, f'Qfinal_{vpu_code}_{end_date}.nc')
-
-        # todo
-        # scan the outputs directory for files matching the pattern Qfinal_VPU_CODE_YYYYMMDD.nc
-        possible_qinit_files = sorted(glob.glob(os.path.join(outputs_directory, f'Qfinal_{vpu_code}_*.nc')))
-        if not len(possible_qinit_files):
-            qinit_file = ''
-        else:
-            # use the most recent file
-            qinit_file = possible_qinit_files[-1]
-        use_qinit_file = idx > 0 or qinit_file != ''
-        qinit_file = os.path.join(
-            outputs_directory, f'Qfinal_{vpu_code}_{inflow_files[idx - 1].split("_")[-1]}'
-        ) if use_qinit_file else ''
+        # # todo
+        # # scan the outputs directory for files matching the pattern Qfinal_VPU_CODE_YYYYMMDD.nc
+        # possible_qinit_files = sorted(glob.glob(os.path.join(outputs_directory, f'Qfinal_{vpu_code}_*.nc')))
+        # if len(possible_qinit_files):
+        #     # use the most recent file
+        #     qinit_file = possible_qinit_files[-1]
+        # else:
+        #     qinit_file = ''
+        # use_qinit_file = idx > 0 or qinit_file != ''
+        # qinit_file = os.path.join(
+        #     outputs_directory, f'Qfinal_{vpu_code}_{inflow_files[idx - 1].split("_")[-1]}'
+        # ) if use_qinit_file else ''
+        use_qinit_file = False
+        qinit_file = ''
 
         rapid_namelist(namelist_save_path=namelist_save_path,
                        k_file=k_file,
@@ -200,7 +214,7 @@ def rapid_namelist_from_directories(vpu_directory: str,
                        riv_bas_id_file=riv_bas_id_file,
                        rapid_connect_file=rapid_connect_file,
                        vlat_file=vlat_file,
-                       qout_file=qout_file,
+                       qout_file=qout_path,
                        time_total=time_total,
                        timestep_calc_routing=timestep_calc_routing,
                        timestep_calc=timestep_calc,

@@ -159,14 +159,15 @@ def rapid_namelist_from_directories(vpu_directory: str,
 
     os.makedirs(namelists_directory, exist_ok=True)
 
-    for idx, inflow_file in enumerate(inflow_files):
+    for idx, inflow_file in enumerate(sorted(inflow_files)):
         inflow_file_name_params = os.path.basename(inflow_file).replace('.nc', '').split('_')
         start_date = inflow_file_name_params[2]
         end_date = inflow_file_name_params[3]
         file_label = inflow_file_name_params[4] if len(inflow_file_name_params) > 4 else ''
 
-        namelist_file_name = f'namelist_{vpu_code}_{start_date}_{end_date}'
         namelist_file_name = f'namelist_{vpu_code}'
+        namelist_file_name = f'namelist_{vpu_code}_{start_date}_{end_date}'
+        namelist_file_name = f'namelist_{vpu_code}_{start_date}'
         qout_file_name = f'Qout_{vpu_code}_{start_date}_{end_date}.nc'
         vlat_file = inflow_file
         write_qfinal_file = True
@@ -201,12 +202,10 @@ def rapid_namelist_from_directories(vpu_directory: str,
         #     qinit_file = possible_qinit_files[-1]
         # else:
         #     qinit_file = ''
-        # use_qinit_file = idx > 0 or qinit_file != ''
-        # qinit_file = os.path.join(
-        #     outputs_directory, f'Qfinal_{vpu_code}_{inflow_files[idx - 1].split("_")[-1]}'
-        # ) if use_qinit_file else ''
-        use_qinit_file = False
-        qinit_file = ''
+        use_qinit_file = idx > 0 or qinit_file is not None
+        qinit_file = os.path.join(
+            outputs_directory, f'Qfinal_{vpu_code}_{inflow_files[idx - 1].split("_")[-1]}'
+        ) if use_qinit_file else ''
 
         rapid_namelist(namelist_save_path=namelist_save_path,
                        k_file=k_file,

@@ -2,8 +2,8 @@ import datetime
 import glob
 import os
 import subprocess
-import sys
 from multiprocessing import Pool
+import argparse
 
 
 def timestamp():
@@ -13,9 +13,9 @@ def timestamp():
 def run_rapid_for_namelist_directory(path_to_rapid_executable: str,
                                      namelist_dir: str, ) -> None:
     watershed_id = os.path.basename(namelist_dir)
-    with open(f'/mnt/logs/{watershed_id}', 'w') as f:
-        try:
-            for namelist in sorted(glob.glob(os.path.join(namelist_dir, '*namelist*'))):
+    with open(f'/mnt/logs/{watershed_id}.log', 'w') as f:
+        for namelist in sorted(glob.glob(os.path.join(namelist_dir, '*namelist*'))):
+            try:
                 f.write(f'{timestamp()}: Running RAPID for {namelist}')
                 subprocess.call(
                     [path_to_rapid_executable, '--namelist', namelist, '--ksp_type', 'preonly'],
@@ -23,10 +23,10 @@ def run_rapid_for_namelist_directory(path_to_rapid_executable: str,
                     stderr=f,
                 )
                 f.write(f'{timestamp()}: Finished RAPID for {namelist}')
-        except Exception as e:
-            print(e)
-            f.write(e)
-            f.write(f'Failed to run RAPID for {namelist_dir}')
+            except Exception as e:
+                print(e)
+                f.write(e)
+                f.write(f'Failed to run RAPID for {namelist}')
 
     return
 
@@ -48,13 +48,24 @@ if __name__ == '__main__':
     Returns:
         None
     """
-    path_to_rapid_exec = sys.argv[1]
-    namelists_dirs = sys.argv[2]
+    parser = argparse.ArgumentParser
+    parser.add_argument('--rapidexec', type=str, required=False,
+                        default='/home/rapid/src/rapid',
+                        help='Path to rapid executable', )
+    parser.add_argument('--namelistsdir', type=str, required=False,
+                        default='/mnt/namelists',
+                        help='Path to directory containing subdirectories of namelist files', )
 
+    path_to_rapid_exec = '/home/rapid/src/rapid'
+
+    namelists_dirs = '/mnt/namelists'
     namelists_dirs = [d for d in glob.glob(os.path.join(namelists_dirs, '*')) if os.path.isdir(d)]
 
-    print(f'Found {len(namelists_dirs)} input directories')
+    cpu_count = min([os.cpu_count(), len(namelists_dirs)])
 
-    with Pool(min([os.cpu_count(), len(namelists_dirs), 3])) as p:
-        p.starmap(run_rapid_for_namelist_directory,
-                  [(path_to_rapid_exec, d) for d in namelists_dirs])
+    print(f'Found {len(namelists_dirs)} input directories')
+    print(f'Have {os.cpu_count()} cpus')
+    print(f'Using {cpu_count} cpus')
+
+    with Pool(cpu_count) as p:
+        p.starmap(run_rapid_for_namelist_directory, [(path_to_rapid_exec, d) for d in namelists_dirs])

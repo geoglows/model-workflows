@@ -39,7 +39,7 @@ for vpu_dir in [d for d in sorted(glob.glob('/Volumes/EB406_T7_2/geoglows2/outpu
     logging.info(f'Processing VPU {vpu_number}')
     df = pd.DataFrame(columns=['rivid', 'qout_max', 'rp2', 'rp5', 'rp10', 'rp25', 'rp50', 'rp100'])
 
-    with xr.open_mfdataset(os.path.join(vpu_dir, 'Qout*.nc')) as ds:
+    with xr.open_mfdataset(os.path.join(vpu_dir, 'Qout*.nc*'), concat_dim='time', combine='nested') as ds:
         # get the size of the rivid dimension and read the Qout variable in 5 chunks
         num_chunks = 15
         chunk_size = int(np.ceil(len(ds.rivid) / num_chunks))

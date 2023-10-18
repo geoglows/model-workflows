@@ -231,12 +231,12 @@ if __name__ == '__main__':
     Prepare rapid namelist files for a directory of VPU inputs
     """
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('--vpudir', type=str, required=True)
+    argparser.add_argument('--basedir', type=str, required=True)
     argparser.add_argument('--dockerpaths', action='store_true', default=False)
     argparser.add_argument('--datesubdir', action='store_true', default=False)
     args = argparser.parse_args()
 
-    base_dir = args.vpudir
+    base_dir = args.basedir
     dockerpaths = args.dockerpaths
     datesubdir = args.datesubdir
 

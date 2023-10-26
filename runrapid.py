@@ -1,9 +1,9 @@
+import argparse
 import datetime
 import glob
 import os
 import subprocess
 from multiprocessing import Pool
-import argparse
 
 
 def timestamp():
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     Returns:
         None
     """
-    parser = argparse.ArgumentParser
+    parser = argparse.ArgumentParser()
     parser.add_argument('--rapidexec', type=str, required=False,
                         default='/home/rapid/src/rapid',
                         help='Path to rapid executable', )
@@ -56,13 +56,13 @@ if __name__ == '__main__':
                         default='/mnt/namelists',
                         help='Path to directory containing subdirectories of namelist files', )
 
-    path_to_rapid_exec = '/home/rapid/src/rapid'
+    args = parser.parse_args()
+    path_to_rapid_exec = args.rapidexec
+    namelists_dirs = args.namelistsdir
 
-    namelists_dirs = '/mnt/namelists'
     namelists_dirs = [d for d in glob.glob(os.path.join(namelists_dirs, '*')) if os.path.isdir(d)]
 
     cpu_count = min([os.cpu_count(), len(namelists_dirs)])
-
     print(f'Found {len(namelists_dirs)} input directories')
     print(f'Have {os.cpu_count()} cpus')
     print(f'Using {cpu_count} cpus')

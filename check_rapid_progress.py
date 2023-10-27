@@ -16,7 +16,7 @@ if __name__ == '__main__':
     inflows_dir = args.inflowsdir
     outflows_dir = args.outflowsdir
 
-    outputdirs = sorted([d for d in glob.glob(outflows_dir) if os.path.isdir(d)])
+    outputdirs = sorted([d for d in glob.glob(os.path.join(outflows_dir, '*')) if os.path.isdir(d)])
 
     num_output_dirs = len(outputdirs)
     outputs_complete = 0

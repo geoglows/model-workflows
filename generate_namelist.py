@@ -4,6 +4,8 @@ import argparse
 import netCDF4
 import pandas as pd
 import natsort
+import logging
+import sys
 
 
 def rapid_namelist(
@@ -245,6 +247,12 @@ if __name__ == '__main__':
     inflow_dirs = os.path.join(base_dir, 'inflows')
     namelist_dirs = os.path.join(base_dir, 'namelists')
     output_dirs = os.path.join(base_dir, 'outputs')
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        stream=sys.stdout,
+    )
 
     all_vpu_dirs = [x for x in glob.glob(os.path.join(vpu_dirs, '*')) if os.path.isdir(x)]
     for vpu_dir in all_vpu_dirs:

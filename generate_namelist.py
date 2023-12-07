@@ -254,7 +254,7 @@ if __name__ == '__main__':
         stream=sys.stdout,
     )
 
-    all_vpu_dirs = [x for x in glob.glob(os.path.join(vpu_dirs, '*')) if os.path.isdir(x)]
+    all_vpu_dirs = sorted([x for x in glob.glob(os.path.join(vpu_dirs, '*')) if os.path.isdir(x)])
     for vpu_dir in all_vpu_dirs:
         inflow_dir = os.path.join(inflow_dirs, os.path.basename(vpu_dir))
         namelist_dir = os.path.join(namelist_dirs, os.path.basename(vpu_dir))

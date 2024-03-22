@@ -20,7 +20,7 @@ for year in range(1950, 2023):
             target=f'{year}_{str(month).zfill(2)}_era5land_hourly.netcdf.zip'
         )
 
-for year in range(1940, 2023):
+for year in range(1940, 2024):
     c.retrieve(
         'reanalysis-era5-single-levels',
         {
